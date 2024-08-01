@@ -1,0 +1,60 @@
+From 7c89529c3331c3dc78544f7f687e43b3a49be6cd Mon Sep 17 00:00:00 2001
+From: Foster Snowhill <forst@pen.gy>
+Date: Thu, 1 Aug 2024 00:06:42 +0200
+Subject: [PATCH 2/2] usb: add support for modes 4 and 5
+
+* Mode 4 is USB Ethernet + CDC-NCM
+* Mode 5 is CDC-NCM Direct only (no usbmux, no USB Ethernet, no PTP)
+
+Only available on newer iOS versions.
+---
+ src/usb.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/usb.c b/src/usb.c
+index 0a5a46c..d0e9afc 100644
+--- a/src/usb.c
++++ b/src/usb.c
+@@ -394,7 +394,7 @@ static struct usb_device* find_device(int bus, int address)
+ /// @param dev 
+ /// @param usbdev 
+ /// @param handle 
+-/// @return 0 - undetermined, 1 - initial, 2 - valeria, 3 - cdc_ncm
++/// @return 0 - undetermined, 1 - initial, 2 - valeria, 3 - cdc_ncm, 4 - usbeth+cdc_ncm, 5 - cdc_ncm direct
+ static int guess_mode(struct libusb_device* dev, struct usb_device *usbdev)
+ {
+ 	int res, j;
+@@ -404,11 +404,21 @@ static int guess_mode(struct libusb_device* dev, struct usb_device *usbdev)
+ 	int bus = usbdev->bus;
+ 	int address = usbdev->address;
+ 
++	if(devdesc.bNumConfigurations == 1) {
++		// CDC-NCM Direct
++		return 5;
++	}
++
+ 	if(devdesc.bNumConfigurations <= 4) {
+ 		// Assume this is initial mode
+ 		return 1;
+ 	}
+ 
++	if(devdesc.bNumConfigurations == 6) {
++		// USB Ethernet + CDC-NCM
++		return 4;
++	}
++
+ 	if(devdesc.bNumConfigurations != 5) {
+ 		// No known modes with more then 5 configurations
+ 		return 0;
+@@ -699,7 +709,7 @@ static void get_mode_cb(struct libusb_transfer* transfer)
+ 
+ 	// Response is 3:3:3:0 for initial mode, 5:3:3:0 otherwise.
+ 	usbmuxd_log(LL_INFO, "Received response %i:%i:%i:%i for get_mode request for device %i-%i", data[0], data[1], data[2], data[3], context->bus, context->address);
+-	if(desired_mode >= 1 && desired_mode <= 3 && 
++	if(desired_mode >= 1 && desired_mode <= 5 &&
+ 	   guessed_mode > 0 && // do not switch mode if guess failed
+ 	   guessed_mode != desired_mode) {
+ 		usbmuxd_log(LL_WARNING, "Switching device %i-%i mode to %i", context->bus, context->address, desired_mode);
+-- 
+2.46.0
+

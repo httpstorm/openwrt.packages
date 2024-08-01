@@ -1,0 +1,31 @@
+From 5011d8fc2d886fc251d13dac6f49b7b350043328 Mon Sep 17 00:00:00 2001
+From: Foster Snowhill <forst@pen.gy>
+Date: Thu, 1 Aug 2024 00:02:54 +0200
+Subject: [PATCH 1/2] usb: correctly display 10 Gbps USB 3.x
+
+iPhone 15 Pro/Pro Max support up to 10 Gbps USB 3.x. Add the necessary
+case to display the correct link speed.
+
+Requires libusb 1.0.22 (2018-03-25) or newer,
+introduced in libusb/libusb@7a91d7cdccaa7dfc3db0828a5230d6260e9338d7
+---
+ src/usb.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/usb.c b/src/usb.c
+index 6c70cec..0a5a46c 100644
+--- a/src/usb.c
++++ b/src/usb.c
+@@ -615,6 +615,9 @@ static void device_complete_initialization(struct mode_context *context, struct
+ 		case LIBUSB_SPEED_SUPER:
+ 			usbdev->speed = 5000000000;
+ 			break;
++		case LIBUSB_SPEED_SUPER_PLUS:
++			usbdev->speed = 10000000000;
++			break;
+ 		case LIBUSB_SPEED_HIGH:
+ 		case LIBUSB_SPEED_UNKNOWN:
+ 		default:
+-- 
+2.46.0
+

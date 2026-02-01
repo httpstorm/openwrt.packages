@@ -1,0 +1,79 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2009-2026 OpenWrt.org
+
+START=90
+STOP=10
+
+USE_PROCD=1
+PROG=/usr/bin/ustreamer
+
+start_instance() {
+	local enabled
+	config_get_bool enabled "$1" 'enabled' 0
+	[ "$enabled" -eq 0 ] && return
+
+	local device=""
+	local device_timeout=""
+	local input=""
+	local resolution=""
+	local format=""
+	local encoder=""
+	local quality=""
+	local desired_fps=""
+	local host=""
+	local port=""
+	local static=""
+	local user=""
+	local password=""
+	local slowdown=1
+	local tcp_nodelay=0
+
+	config_get device "$1" 'device' "/dev/video0"
+	config_get device_timeout "$1" 'device_timeout' "5"
+	config_get input "$1" 'input' "0"
+	config_get resolution "$1" 'resolution' "640x480"
+	config_get format "$1" 'format' "YUYV"
+	config_get encoder "$1" 'encoder' "CPU"
+	config_get quality "$1" 'quality' "80"
+	config_get desired_fps "$1" 'desired_fps' "0"
+	config_get host "$1" 'host' "::"
+	config_get port "$1" 'port' "8080"
+	config_get static "$1" 'static'
+	config_get user "$1" 'user'
+	config_get password "$1" 'password'
+	config_get_bool slowdown "$1" 'slowdown' 1
+	config_get_bool tcp_nodelay "$1" 'tcp_nodelay' 0
+
+	[ -n "$device" -a -c "$device" ] || return
+
+	procd_open_instance
+	procd_set_param command "$PROG"
+
+	[ -n "$device" ] && procd_append_param command --device "$device"
+	[ -n "$device_timeout" ] && procd_append_param command --device-timeout "$device_timeout"
+	[ -n "$input" ] && procd_append_param command --input "$input"
+	[ -n "$resolution" ] && procd_append_param command --resolution "$resolution"
+	[ -n "$format" ] && procd_append_param command --format "$format"
+	[ -n "$encoder" ] && procd_append_param command --encoder "$encoder"
+	[ -n "$quality" ] && procd_append_param command --quality "$quality"
+	[ -n "$desired_fps" ] && procd_append_param command --desired-fps "$desired_fps"
+	[ "$slowdown" -ne "0" ] && procd_append_param command --slowdown
+	[ "$tcp_nodelay" -ne "0" ] && procd_append_param command --tcp-nodelay
+	[ -n "$host" ] && procd_append_param command --host "$host"
+	[ -n "$port" ] && procd_append_param command --port "$port"
+	[ -n "$static" ] && procd_append_param command --static "$static"
+	[ -n "$user" ] && procd_append_param command --user "$user"
+	[ -n "$password" ] && procd_append_param command --passwd "$password"
+
+	procd_add_mdns http tcp "$port" "daemon=ustreamer"
+	procd_close_instance
+}
+
+start_service() {
+	config_load 'ustreamer'
+	config_foreach start_instance 'ustreamer'
+}
+
+service_triggers() {
+	procd_add_reload_trigger 'ustreamer'
+}
